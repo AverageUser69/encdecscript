@@ -1,0 +1,346 @@
+#!bin/bash
+#bash script to encrypt and decrypt data given by the user
+
+
+#-- -- -- -- ---------- function to exit the bash script  ---------- -- -- -- --
+function to_exit(){
+        #clear
+        echo " "
+        echo " "
+        echo "You have choosed to exit."
+        exit
+        }
+
+
+#-- -- -- -- ---------- function to ask user for output of encryption   ---------- -- -- -- -- 
+function output_filename(){
+        echo " "
+        read -p "Please enter Output file name after encryption->" output_file
+        if [[ ! $output_file =~ ^[[:alnum:]]+$ ]];then
+                 echo "You cannot enter special character in file name."
+                 echo "Please enter file name without any special character"
+                 output_filename
+
+        else
+                choose_type_enc
+
+         fi
+
+        }
+
+
+#-- -- -- -- ---------- function of asymmetric encryption process  ---------- -- -- -- -- 
+function asymmetric_encryption(){ 
+        echo " "
+        echo "You have choosed Asymmetric Encryption"
+        openssl genrsa -out privatekey 2048
+        openssl rsa -in privatekey -out publickey -pubout
+        openssl rsautl -encrypt -inkey publickey -pubin -in $new_filename -out $output_file
+        echo "Your file have been Encrypted succesfully and is named as $output_file."
+        echo -e "Choose '1' to choose from encryption or decryption.\n Enter any other key to exit."
+        read -p "Enter your choice ->" other_choice
+        if [[ $other_choice = '1' ]];then
+                choosing
+        else
+                to_exit
+
+        fi
+        }
+
+
+#-- -- -- -- ---------- function of symmetric encryption process  ---------- -- -- -- -- 
+function symmetric_encryption(){
+        echo " "
+        echo "You have choosed Symmetric Encryption"
+        echo -e "aes-128-cbc\naes-128-ecb\naes-192-cbc\naes-192-ecb\nbf\nbf-cbc\nbf-cfb\nbf-ecb\ncast-cbc\ncast5-cbc\ncast5-cfb\ncast5-ecb\nrc2-cfb\nrc2-ecb\nrc2-ofb\nrc4\nseed-ecb\nseed-ofb\nsm4-cbc\nsm4-cfb" > cipher_list
+        cat --number cipher_list
+        lines=$(wc --lines <cipher_list)
+
+        echo -e '#!/bin/bash\nFILE="$1"\nLINE_NO=$2\n\ni=0\nwhile read line; do\ni=$(( i + 1 ))\ncase $i in\n$LINE_NO) echo "$line";\nbreak;;\nesac\ndone <"$FILE"'>getline
+        read -p "Choose any algorathem to Encrypt your file ->" algo_choice
+        if [[ $algo_choice =~ [^[:digit:]] ]];then
+#               if (( $lines>=$algo_choice ));then
+#                       algorithm=$(bash getline cipher_list $algo_choice)
+#                       echo "You have choosed $algorithm"
+                        echo "Invalid input!!"
+                                symmetric_encryption
+
+                else
+                        if (( $lines>=$algo_choice ));then
+                                algorithm=$(bash getline cipher_list $algo_choice)
+                                echo "You have choosed $algorithm algorithm for encryption of file $new_filename ."
+                                read -p "Please enter password for Encryption ->" passcode
+                                openssl enc -$algorithm -md sha512 -pbkdf2 -iter 10000 -salt -in $new_filename -out $output_file -k $passcode
+                                echo "Encryption of file done and encrypted file is named as $output_file ."
+                                echo -e " \n "
+                                echo -e "Choose '1' to return to main menu.\n Enter any other key to exit the script"
+                                read -p "Enter your choice ->" other_choice
+                                 if [[ $other_choice = '1' ]];then
+                                         choosing
+                                 else
+                                         to_exit
+                                fi
+
+                        else
+                                symmetric_encryption
+                fi
+        fi
+
+
+        }
+
+
+#-- -- -- -- ---------- function to ask user for existing file for encryption from any directory  ---------- -- -- -- -- 
+function exist_fileenc(){
+        echo " "
+        read -p "Enter path of the file you want to encrypt:/home/" path_of_file
+        if test -f "/home/$path_of_file";then
+                new_filename=$(echo "$path_of_file" | rev | cut -d/ -f1 |rev)
+#               count=$(grep -o "/" <<<"/$path_of_file" | wc -l)
+                file_path=/home/$(echo "$path_of_file" |rev| cut -d/ --complement -f1 | rev)
+                #echo "$file_path"
+                cat $file_path/$new_filename
+                cd $file_path
+                output_filename
+        else
+                #echo "hello"
+                echo "Invalid path for the file"
+                echo "Please enter valide path of file"
+                #rm error_file
+                exist_fileenc
+        fi
+        }
+
+
+#-- -- -- -- ---------- function to choose type of encryption that user want to choose from  ---------- -- -- -- -- 
+function choose_type_enc(){
+                echo " "
+                echo -e "Choose '1' for Asymmetric Encryption.\nChoose '2' for Symmetric Encryption.\nEnter any other key to exit the Encryption process."
+                read -p "Enter your choice->" type_choice
+                if [[ $type_choice =~ ^[1-2]$ ]];then
+                        if [[ $type_choice = '1' ]];then
+                                asymmetric_encryption
+                        elif [[ $type_choice = '2' ]];then
+                                symmetric_encryption
+                        fi
+                else
+                        to_exit
+
+                fi
+        }
+
+
+#-- -- -- -- ---------- function to creat a new file and insert content inside it   ---------- -- -- -- -- 
+function new_fileenc(){
+        echo " "
+        read -r -p "PLease enter name for the file -> " new_filename
+         if [[ ! $new_filename =~ ^[[:alnum:]]+$ ]];then
+                 echo "You cannot enter special character in file name."
+                 echo "Please enter file name without any special character"
+                 new_fileenc
+
+        else
+#                       if [[$new_filename =~]]
+                read -p "Enter the content you want to insert inside $new_filename -> " file_content
+                 echo "$file_content" > $new_filename
+                 output_filename
+         fi
+        }
+
+
+#-- -- -- -- ---------- function to ask user if they want to create new file or choose existing file  ---------- -- -- -- -- 
+function choose_encrypt(){
+        echo " "
+        echo -e "Choose '1' if you want to create new file for encryption.\nChoose '2' if you want to choose from existing file.\nChoose '0' if you want to exit. "
+        read -p "Enter your choice: " enchoice
+        if [[ $enchoice =~ ^[0-2]$  ]];then
+                if [ $enchoice = "1" ];then
+                        new_fileenc
+                elif [ $enchoice = "2"  ];then
+                        exist_fileenc
+
+                elif [ $enchoice = "0" ];then
+                        to_exit
+                else
+                        echo "invalid choice"
+
+                fi
+        else
+                echo "You have choosed incorrect input, please enter valid choice"
+                choose_encrypt
+
+        fi
+
+        }
+
+
+#-- -- -- -- ---------- function to perform asymmetric decryption process  ---------- -- -- -- -- 
+function asymmetric_decrypt(){
+        echo " "
+        openssl rsautl -decrypt -inkey privatekey -in $dec_filename -out $dec_output 
+        cat $dec_output
+        echo "Redirecting to main menu"
+        choosing
+
+        }
+
+
+#-- -- -- -- ---------- function to perform symmetric decryption process  ---------- -- -- -- -- 
+function symmetric_decrypt(){
+        echo " "
+        echo -e "aes-128-cbc\naes-128-ecb\naes-192-cbc\naes-192-ecb\nbf\nbf-cbc\nbf-cfb\nbf-ecb\ncast-cbc\ncast5-cbc\ncast5-cfb\ncast5-ecb\nrc2-cfb\nrc2-ecb\nrc2-ofb\nrc4\nseed-ecb\nseed-ofb\nsm4-cbc\nsm4-cfb" > cipher_list
+#-- -- -- -- creating new file named 'cipher_list' and inserting some list of algorithm inside the file  -- -- -- -- 
+        cat --number cipher_list
+        lines=$(wc --lines <cipher_list)
+        echo -e '#!/bin/bash\nFILE="$1"\nLINE_NO=$2\n\ni=0\nwhile read line; do\ni=$(( i + 1 ))\ncase $i in\n$LINE_NO) echo "$line";\nbreak;;\nesac\ndone <"$FILE"'>getline
+#-- -- -- -- creating a new file 'get line' that read number of line from 'cipher_list'  -- -- -- --
+#-- -- -- -- its not necessary but if user want to add some more algorithm even then the bash will run without problem  -- -- -- -- 
+        read -p "Choose which algorithm was used to encrypt your file ->" dec_algo_choice
+        if [[ $dec_algo_choice =~ [^[:digit:]] ]];then
+#               if (( $lines>=$dec_algo_choice ));then
+#                       algorithm=$(bash getline cipher_list $dec_algo_choice)
+#                       echo "You have choosed $algorithm"
+                        echo "Invalid input!!"
+                                symmetric_decrypt
+
+         else
+                        if (( $lines>=$dec_algo_choice ));then
+                                dec_algorithm=$(bash getline cipher_list $dec_algo_choice)
+                                echo "You have choosed $dec_algorithm algorithm for decryption of file $dec_filename ."
+                                read -p "Please enter password to perform decryption->" dec_pass
+                                if openssl $dec_algorithm -md sha512 -pbkdf2 -iter 10000 -salt -d -in $dec_filename -out $dec_output -k $dec_pass ;then
+                                        echo "The decryption was successful"
+                                        cat $dec_output
+                                        exit
+                                else
+                                        echo -e " \n "
+                                        echo "The decryption or the password for the file was incorrect:"
+                                        echo -e " \n "
+                                        symmetric_decrypt
+                                fi
+                                #if [ -s error_file ];then
+                                #       cat $dec_output
+                                #       exit
+                                #       echo "ERROR"
+                                #       symmetric_decrypt
+                                #else
+                                #       cat $dec_output
+                                #       exit
+                                #       echo -e " \n "
+                                #       echo "The decryption algorithm or the password for the file was incorrect"
+                                #       symmetric_decrypt
+
+                                #fi
+
+
+                        else 
+                                echo "PLease choose a valid choice"
+                                symmetric_decrypt
+
+
+        echo "Please choose which algorithm was used to encrypt the file"
+                        fi
+        fi
+        }
+
+
+#-- -- -- -- ---------- function to ask user if they want to perform symmetric or asymmetric decryption process  ---------- -- -- -- -- 
+function decrypt_method(){
+        echo " "
+        echo -e "Enter '1' if your file is encrypted using Asymmetric key\nEnter '2' if your file is encrypted using Symmetric key.\nEnter '0' if you wanna exit the process." 
+        read -p "Enter your choice ->" dec_choice
+        if [[ $dec_choice =~ ^[0-2]$ ]];then
+                if [ $dec_choice = "1" ];then
+                        asymmetric_decrypt
+                elif [ $dec_choice = "2" ];then
+                        symmetric_decrypt
+                elif [ $dec_choice = "0" ];then
+                        to_exit
+                fi
+        else
+                echo "You have choosed incorrect input, please enter valid choose"
+                decrypt_method
+        fi
+                }
+
+
+#-- -- -- -- ---------- function to ask user for file name where decrypted data will be stored  ---------- -- -- -- -- 
+function decrypt_file_output(){
+        echo " "
+        read -p "Please enter file name for Decryption output->" dec_output
+if [[ ! $dec_output =~ ^[[:alnum:]]+$ ]];then
+                 echo "You cannot enter special character in file name."
+                 echo "Please enter file name without any special character"
+                 decrypt_file_output
+
+        else
+#                       if [[$new_filename =~]]
+                decrypt_method
+
+         fi
+
+
+        }
+
+
+#-- -- -- -- ---------- function to ask user if the encrypted file is in same directory or in diffrent one  ---------- -- -- -- -- 
+#-- -- -- -- ---------- and aslo asking for the file name  ---------- -- -- -- -- 
+function choose_decrypt(){
+        echo -e " \n "
+        where=$(pwd)
+        echo -e "Your curent working directory is $where . \nPLease press any key to continue on current directory.\nOr enter '0' to enter path where the encrypted file is."
+        read -p "Enter your choice->" dec_choice
+        if [[ $dec_choice = '0' ]];then
+                read -p "Please enter the path wher you have stored encrypted files:/home/" dec_path
+                if [ -f "/home/$dec_path" ];then
+                        dec_filename=$(echo "$dec_path" | rev | cut -d/ -f1 |rev)
+                       #count=$(grep -o "/" <<<"/$dec_path" | wc -l)
+                        file_path=/home/$(echo "$dec_path" |rev| cut -d/ --complement -f1 | rev)
+                       #echo "$file_path"
+                        cd $file_path
+                        decrypt_file_output
+                else
+                        echo -e " \n "
+                        echo "No such directory or File were found"
+                        choose_decrypt
+
+                fi
+
+        else
+                read -p "Please enter the name of file->" dec_filename
+                if [ -f "$dec_filename" ];then
+                        decrypt_file_output
+                else
+                        echo -e " \n "
+                        echo "No such file found"
+                        choose_decrypt
+                fi
+        fi
+        }
+
+
+#-- -- -- -- ---------- function to ask user if they want to encrypt or decrypt file  ---------- -- -- -- -- 
+function choosing(){
+        echo " "
+        echo "-- -- -- -- ---------- --->***<--- ---------- -- -- -- --" 
+        echo -e "Script to encrypt and decrypt data.\n'1' for encryption.\n'2' for decryption.\n'0' to exit script"
+        read -p "Please select an input: " choice
+        if [[ $choice =~ ^[0-2]$ ]];then
+                if [ $choice = "1" ];then
+                        choose_encrypt
+                elif [ $choice = "2" ];then
+                        choose_decrypt
+                elif [ $choice = "0" ];then
+                        to_exit
+                fi
+        else
+                echo " "
+                echo "You have choosed incorrect input, please enter valid choice"
+                echo " "
+                choosing
+        fi
+                }
+
+
+#-- -- -- -- calling function "choosing"  -- -- -- -- 
+choosing
